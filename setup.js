@@ -6,8 +6,8 @@ const backend_github_url = `https://github.com/arpitgo4/Express-MongoDB-Scaffold
 const frontend_github_url = `https://github.com/arpitgo4/React-Redux-Scaffold.git`;
 const github_backend_dir = `Express-MongoDB-Scaffold`;
 const github_frontend_dir = `React-Redux-Scaffold`;
-const backend_dir = 'server';
-const frontend_dir = 'client';
+const backend_dir = `server`;
+const frontend_dir = `client`;
 
 
 const BINARY_CHECK_COMMANDS = [
@@ -19,7 +19,8 @@ const BINARY_COMMANDS = {
     RENAME_DIR: (old_name, new_name) => `mv ${old_name} ${new_name}`,
     CLONE_GITHUB_REPO: repo_http_url => `git clone ${repo_http_url}`,
     // TODO: add sudo
-    REMOVE_DIR: dir_name => dir_name ? `rm -rf ${dir_name}` : ``  ,
+    REMOVE_DIR: dir_name => dir_name ? `rm -rf ${dir_name}` : ``,
+    CD_DIR: path => `cd ${path}`,
 };
 
 const checkForRequiredBinaries = () => {
