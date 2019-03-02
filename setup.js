@@ -12,33 +12,45 @@ const frontend_dir = `client`;
 
 const BINARY_CHECK_COMMANDS = [
     `git --version`,
+    `docker -v`,
+    `docker-compose -v`,
 ];
 
 const BINARY_COMMANDS = {
     SUPER_BASH: () => `sudo bash`,
     RENAME_DIR: (old_name, new_name) => `mv ${old_name} ${new_name}`,
     CLONE_GITHUB_REPO: repo_http_url => `git clone ${repo_http_url}`,
-    // TODO: add sudo
-    REMOVE_DIR: dir_name => dir_name ? `rm -rf ${dir_name}` : ``,
+    REMOVE_DIR: dir_name => dir_name ? `sudo rm -rf ${dir_name}` : ``,
     CD_DIR: path => `cd ${path}`,
 };
 
 const checkForRequiredBinaries = () => {
-    return Promise.all(BINARY_CHECK_COMMANDS.map(executeBinary));
+    return Promise.all(BINARY_CHECK_COMMANDS.map(check_command => {
+        const [ binary ] = check_command.split(` `);
+
+        return executeBinary(check_command, false)
+        .then(() => {
+            console.info(`[setup] ${binary} found in $PATH`);
+        })
+        .catch(err => {
+            console.error(`[setup] ${binary} not found in $PATH`);
+            return Promise.reject(err);
+        });
+    }));
 };
 
-const executeBinary = command => {
+const executeBinary = (command, log_output = true) => {
+    if (log_output)
+        console.info(`[setup] Executing: ${command}`);
+
     return exec(command)
     .then(({ stdout, stderr, }) => {
         const regex = /\n/gi;
         stdout = stdout.replace(regex, '');
 
         // TODO: improve logging between stdout and stderr
-        if (stdout)
-            console.log(`[setup] ${stdout}`);
-    })
-    .then(() => {
-        console.log(`[setup] Executed: ${command}`);
+        // if (stdout)
+        //     console.log(`[setup] ${stdout}`);
     })
     .catch(err => {
         console.log(`[setup] Error executing: ${command}`);
@@ -85,6 +97,9 @@ const main = () => {
             removeDir(backend_dir),
             removeDir(frontend_dir),
         ]);
+    })
+    .then(() => {
+        console.log(`\nTo start project:\n$ cd deployment/development && docker-compose up --build`);
     });
 };
 
