@@ -1,6 +1,14 @@
 
+const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
+
+const rl = readline.createInterface({
+    input: process.stdin, 
+    output: process.stdout,
+});
 
 const backend_github_url = `https://github.com/arpitgo4/Express-MongoDB-Scaffold.git`;
 const frontend_github_url = `https://github.com/arpitgo4/React-Redux-Scaffold.git`;
@@ -9,6 +17,12 @@ const github_frontend_dir = `React-Redux-Scaffold`;
 const backend_dir = `server`;
 const frontend_dir = `client`;
 
+const print_banner = () => {
+    console.info(`Node-React-Scaffold`);
+    const required_binaries = BINARY_CHECK_COMMANDS.map(c => c.split(' ')[0]);
+    console.info(`Dependencies for the scaffold: ${required_binaries.join(', ')}`);
+    console.info(`\n`);
+};
 
 const BINARY_CHECK_COMMANDS = [
     `git --version`,
@@ -73,23 +87,76 @@ const cloneGithubRepo = repo_http_url => {
     return executeBinary(cmd);
 };
 
+const checkIfDirExists = dir_name => {
+    const p = path.resolve(dir_name);
+    return fs.existsSync(p);
+};
 
 const main = () => {
-    // need super user permissions (only for deleting dirs)
-    // return executeBinary(BINARY_COMMANDS.SUPER_BASH())
-    // .then(checkForRequiredBinaries)
-    
-    return checkForRequiredBinaries()
+    const [ _, __, dev_mode ] = process.argv;
+    let create_backend = true;
+    let create_frontend = true;
+
+    print_banner();
+
+    return new Promise(resolve => {
+        const backend_exists = checkIfDirExists(backend_dir) || checkIfDirExists(github_backend_dir);
+
+        if (!backend_exists)
+           return resolve();
+
+        rl.setPrompt('Backend setup already exists, enter (Y/n) to overwrite: ');
+        rl.prompt();
+        rl.on('line', line => {
+            // TODO: callback being called twice and resetting the create_backend to `false`
+            if (line === 'Y') {
+                return resolve(Promise.all([
+                    removeDir(github_backend_dir),
+                    removeDir(backend_dir),
+                ]));
+            } else {
+                create_backend = false;
+                return resolve();
+            }
+        });
+    })
+    .then(() => new Promise(resolve => {
+        const frontend_exists = checkIfDirExists(frontend_dir) || checkIfDirExists(github_frontend_dir);
+
+        if (!frontend_exists) 
+            return resolve();
+
+        rl.setPrompt('Frontend setup already exists, enter (Y/n) to overwrite: ');
+        rl.prompt();
+        rl.on('line', line => {
+            rl.close();
+
+            if (line === 'Y') {
+                return resolve(Promise.all([
+                    removeDir(github_frontend_dir),
+                    removeDir(frontend_dir)
+                ]));
+            } else {
+                create_frontend = false;
+                return resolve();
+            }
+        });
+    }))
+    .then(() => console.log(create_frontend, create_backend))
+    .then(checkForRequiredBinaries)
     .then(() => Promise.all([
-        cloneGithubRepo(backend_github_url),
-        cloneGithubRepo(frontend_github_url),
+        create_backend ? cloneGithubRepo(backend_github_url) : Promise.resolve(),
+        create_frontend ? cloneGithubRepo(frontend_github_url) : Promise.resolve(),
     ]))
     .then(() => Promise.all([
-        renameDir(github_backend_dir, backend_dir),
-        renameDir(github_frontend_dir, frontend_dir),
+        create_backend ? renameDir(github_backend_dir, backend_dir) : Promise.resolve(),
+        create_frontend ? renameDir(github_frontend_dir, frontend_dir) : Promise.resolve(),
     ]))
     .catch(err => console.log(`[setup] Error: ${err.message}`))
     .then(() => {
+        if (!dev_mode)
+            return Promise.resolve();
+
         console.log(`[setup] Removing directories`);
         return Promise.all([
             removeDir(github_backend_dir),
@@ -100,7 +167,9 @@ const main = () => {
     })
     .then(() => {
         console.log(`\nTo start project:\n$ cd deployment/development && docker-compose up --build`);
-    });
+        rl.close();
+    })
+    .catch(err => console.error(`Error Occured: ${err.message}`));
 };
 
 main();
