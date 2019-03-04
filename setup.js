@@ -58,14 +58,6 @@ const executeBinary = (command, log_output = true) => {
         console.info(`[setup] Executing: ${command}`);
 
     return exec(command)
-    .then(({ stdout, stderr, }) => {
-        const regex = /\n/gi;
-        stdout = stdout.replace(regex, '');
-
-        // TODO: improve logging between stdout and stderr
-        // if (stdout)
-        //     console.log(`[setup] ${stdout}`);
-    })
     .catch(err => {
         console.log(`[setup] Error executing: ${command}`);
         return Promise.reject({ message: err.message });
@@ -105,11 +97,8 @@ const main = () => {
         if (!backend_exists)
            return resolve();
 
-        rl.setPrompt('Backend setup already exists, enter (Y/n) to overwrite: ');
-        rl.prompt();
-        rl.on('line', line => {
-            // TODO: callback being called twice and resetting the create_backend to `false`
-            if (line === 'Y') {
+        rl.question(`[setup] Backend setup already exists, enter (Y/n) to overwrite: `, answer => {
+            if (answer === 'Y') {
                 return resolve(Promise.all([
                     removeDir(github_backend_dir),
                     removeDir(backend_dir),
@@ -126,12 +115,10 @@ const main = () => {
         if (!frontend_exists) 
             return resolve();
 
-        rl.setPrompt('Frontend setup already exists, enter (Y/n) to overwrite: ');
-        rl.prompt();
-        rl.on('line', line => {
+        rl.question(`[setup] Frontend setup already exists, enter (Y/n) to overwrite: `, answer => {
             rl.close();
 
-            if (line === 'Y') {
+            if (answer === 'Y') {
                 return resolve(Promise.all([
                     removeDir(github_frontend_dir),
                     removeDir(frontend_dir)
@@ -142,7 +129,6 @@ const main = () => {
             }
         });
     }))
-    .then(() => console.log(create_frontend, create_backend))
     .then(checkForRequiredBinaries)
     .then(() => Promise.all([
         create_backend ? cloneGithubRepo(backend_github_url) : Promise.resolve(),
@@ -152,12 +138,11 @@ const main = () => {
         create_backend ? renameDir(github_backend_dir, backend_dir) : Promise.resolve(),
         create_frontend ? renameDir(github_frontend_dir, frontend_dir) : Promise.resolve(),
     ]))
-    .catch(err => console.log(`[setup] Error: ${err.message}`))
     .then(() => {
         if (!dev_mode)
             return Promise.resolve();
 
-        console.log(`[setup] Removing directories`);
+        console.log(`[setup] Removing directories [dev mode]`);
         return Promise.all([
             removeDir(github_backend_dir),
             removeDir(github_frontend_dir),
@@ -166,7 +151,7 @@ const main = () => {
         ]);
     })
     .then(() => {
-        console.log(`\nTo start project:\n$ cd deployment/development && docker-compose up --build`);
+        console.log(`\nTo start development:\n$ cd deployment/development && docker-compose up --build`);
         rl.close();
     })
     .catch(err => console.error(`Error Occured: ${err.message}`));
