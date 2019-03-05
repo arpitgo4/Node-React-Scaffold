@@ -138,6 +138,10 @@ const main = () => {
         create_backend ? renameDir(github_backend_dir, backend_dir) : Promise.resolve(),
         create_frontend ? renameDir(github_frontend_dir, frontend_dir) : Promise.resolve(),
     ]))
+    .then(() => Promise.all([
+        create_backend ? removeDir(`${backend_dir}/.git`) : Promise.resolve(),
+        create_frontend ? removeDir(`${frontend_dir}/.git`) : Promise.resolve(),        
+    ]))
     .then(() => {
         if (!dev_mode)
             return Promise.resolve();
